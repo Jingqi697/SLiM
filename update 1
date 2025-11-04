@@ -1,0 +1,76 @@
+// Phase 1: Burn-in
+
+// Create ancestral population with recessive deleterious mutation load
+initialize() {
+defineConstant("K_ANCESTRAL", 10000); // Carrying capacity for ancestral population
+defineConstant("L", 20e6);  // Chromosomal 2L
+defineConstant("REC_RATE", 2e-8);    // Recombination rate
+defineConstant("INV_START", 5e6);        // Inversion start
+defineConstant("INV_END", 16e6);         // Inversion end
+defineConstant("MU_DELETERIOUS", 1e-9); // Deleterious mutation rate
+defineConstant("DFE_SHAPE", 0.2);       // Gamma shape
+defineConstant("DFE_MEAN_S", -0.05);   // Mean selection (s)
+defineConstant("H_DOMINANCE", 0.0);      // Dominance = fully recessive
+// Burn-in timeline
+defineConstant("BURN_IN_1_GENS", 10 * K_ANCESTRAL);
+defineConstant("BURN_IN_2_GENS", 10 * K_ANCESTRAL);
+// Model setup
+initializeSLiMModel(type="nonWF"); // nonWF allows customization
+initializeGenomicElement(g0, 0, L-1); // Creates the standard chromosome g0, span entire 2L
+initializeInversion(g1, INV_START, INV_END, 1.0, 0.0, dcRate=1e-7); // Creates In(2L)t inversion g1, no fitness effect
+initializeMutationType("m1", 0.5, "f", 0.0); // Neutral mutation m1
+m1.convertToSubstitution = T; // Memory saving
+initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE); // Recessive deleterious mutation m2, gamma distribution
+m2.convertToSubstitution = F;
+initializeGenomicElementType("gtype", c(m1, m2), c(1e-9, MU_DELETERIOUS)); // Mutation rate
+g0.setGenomicElementType(gtype); // Introduce mutations m1 and m2 on the standard chromosome
+initializeRecombinationRate(REC_RATE); // Recombination rate
+initializePopulation(p1, K_ANCESTRAL); // Creates population p1
+// Birth and selection
+reproduction() {
+mate1 = p1.sampleIndividuals(1);
+mate2 = p1.sampleIndividuals(1); // Random mating
+p1.addCrossed(mate1, mate2); // Offspring
+}
+fitness(NULL) { // Applies to all individuals in all populations
+fitness = 1.0; // Base fitness = 1
+muts = individual.genomes.mutationsOfType(m2);
+if (size(muts) > 0) {
+unique_muts = unique(muts);
+for (mut in unique_muts) { // Check. each unique m2 for homozygosity
+if (individual.genomes.countOfMutations(mut) == 2) { // Apply fitness cost only when homozygous for recessive mutation
+fitness = fitness * (1.0 + mut.selectionCoeff);
+}
+}
+}
+return fitness;
+}
+// Accumulate deleterious load (m2)
+1:BURN_IN_1_GENS { // 100000 generations
+if (sim.generation % 1000 == 0)
+catn(sim.generation + " N: " + p1.individualCount); // Print status update for every 1000 generations
+}
+// Introduce In(2L)t inversion (g1)
+BURN_IN_1_GENS+1 {
+catn("Introducing inversion g1...");
+target_genome = p1.sampleIndividuals(1).genomes[0]; // Randomly select one chromosome in a random individual 
+target_genome.addGenomicElement(g1, INV_START, INV_END); // Add inversion
+}
+// Evolve polymorphism due to AOD
+(BURN_IN_1_GENS+2):(BURN_IN_1_GENS + BURN_IN_2_GENS) { // Starts after the inevrsion is introduced
+if (sim.generation % 1000 == 0) {
+freq = sim.inversionFrequency(p1, g1);
+catn(sim.generation + " N: " + p1.individualCount + " Freq: " + freq);
+if (freq == 0.0 || freq == 1.0) { // Faliure
+catn("Inversion lost or fixed. Stopping burn-in.");
+sim.simulationFinished();
+}
+}
+}
+// Stage 4: Save final population state
+(BURN_IN_1_GENS + BURN_IN_2_GENS)+1 {
+catn("Burn-in complete. Saving population.");
+sim.outputFull("ancestral_pop.txt");
+sim.simulationFinished();
+}
+}
