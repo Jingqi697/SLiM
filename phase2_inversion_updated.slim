@@ -2,30 +2,34 @@
 // Run 1000 independent replicates to capture cases where inversion persists
 
 initialize() {
-defineConstant("K_ANCESTRAL", 5000);
-defineConstant("L", 23e6);
-defineConstant("REC_RATE", 2e-8);
+// Parameters
+defineConstant("K_ANCESTRAL", 5000); // Population carrying capacity 
+defineConstant("L", 23e6); // Chromosome 2L
+defineConstant("REC_RATE", 2e-8); // Recombination rate
 defineConstant("INV_START", 2e6);
-defineConstant("INV_END", 13e6);
-defineConstant("MU_DELETERIOUS", 1e-8);
+defineConstant("INV_END", 13e6); // Inversion In(2L)t -- 11 Mb
+defineConstant("MU_DELETERIOUS", 1e-8); 
 defineConstant("DFE_SHAPE", 0.2);
-defineConstant("DFE_MEAN_S", -0.05);
-defineConstant("H_DOMINANCE", 0.0);
-	
+defineConstant("DFE_MEAN_S", -0.05); // Deleterious mutation fitness cost, gamma distribution with mewan of -0.05
+defineConstant("H_DOMINANCE", 0.0); // Fully recessive 
+defineConstant("BURN_IN_GENS", 10 * K_ANCESTRAL); // Burn-in lasts for 50000 generations
+defineConstant("INV_BURN_IN_GENS", 10 * K_ANCESTRAL);
+
 if (!exists("jobID")) defineConstant("jobID", 1);
 defineConstant("INV_TRACKING_GENS", 10 * K_ANCESTRAL);
 defineConstant("LOG_INTERVAL", 1000);
 
+// Model setup
 initializeSLiMModelType("nonWF");
+// Deleterious mutation m2
 initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE);
 m2.convertToSubstitution = F;
-initializeMutationType("m3", 0.5, "f", 0.0);
+// Inversion marker m3
+initializeMutationType("m3", 0.5, "f", 0.0); 
 m3.convertToSubstitution = F;
-	
 defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
-	
-initializeGenomicElementType("g1", m2, 1.0);
-initializeGenomicElement(g1, 0, L-1);
+initializeGenomicElementType("g1", m2, 1.0); 
+initializeGenomicElement(g1, 0, L-1); // Standard chromosome
 initializeMutationRate(MU_DELETERIOUS);
 initializeRecombinationRate(REC_RATE);
 }
@@ -33,23 +37,14 @@ initializeRecombinationRate(REC_RATE);
 // Load burn-in state
 1 early() {
 sim.readFromPopulationFile("burnin_state_K=5000_simID=6359159518542726634.txt");
-	
 setSeed(getSeed() + jobID);
 defineConstant("repID", getSeed());
-	
-//Record the starting generation
 defineConstant("START_GEN", sim.cycle);
 catn("Phase 2: Replicate " + jobID);
 catn("Loaded burn-in state at generation " + START_GEN);
-}
-
-1: late() {
-// Introduce at START_GEN
-if (sim.cycle == START_GEN) {
-p1.sampleIndividuals(1).haplosomes[0].addNewDrawnMutation(m3, INV_MARKER_POS);
-inv_freq = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p1.individualCount);
-catn("Generation " + sim.cycle + ": Inversion introduced. Frequency: " + inv_freq);
-}
+	
+// Apply fitness scaling
+p1.fitnessScaling = K_ANCESTRAL / p1.individualCount;
 }
 // Reproduction
 reproduction() {
@@ -57,11 +52,20 @@ mate1 = p1.sampleIndividuals(1);
 mate2 = p1.sampleIndividuals(1);
 p1.addCrossed(mate1, mate2);
 }
+// Introduce inversion at START_GEN
+1: late() {
+if (!exists("START_GEN")) return;
+if (sim.cycle == START_GEN) {
+p1.sampleIndividuals(1).haplosomes[0].addNewDrawnMutation(m3, INV_MARKER_POS);
+inv_freq = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p1.individualCount);
+catn("Generation " + sim.cycle + ": Inversion introduced. Frequency: " + inv_freq);
+}
+}
 
 // Recombination suppression in heterozygotes
 recombination() {
-if (genome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
-genome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
+if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
 return F;
 }
 else {
@@ -77,22 +81,31 @@ return T;
 }
 
 // Population size control
-2: early() {
-//Stop after tracking period
-if (sim.cycle > START_GEN + INV_TRACKING_GENS) return;
+50001:100000 early() {
+if (sim.cycle > START_GEN + INV_TRACKING_GENS) {
+sim.simulationFinished();
+}
 p1.fitnessScaling = K_ANCESTRAL / p1.individualCount;
 }
 
-2: late() {
-// Don't track until 1000 generations after introduction
-if (sim.cycle < START_GEN + 1000) return;
-// Stop after tracking period
-if (sim.cycle > START_GEN + INV_TRACKING_GENS) return;
+// Tracking (CHANGED FROM 2: to 50001:)
+50001:100000 late() {
+// Calculate frequency every generation
 inv_count = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3));
 inv_freq = inv_count / (2.0 * p1.individualCount);
-    
-// Log every 1000 generations
-if ((sim.cycle - START_GEN) % LOG_INTERVAL == 0) {
+	
+// Check for loss/fixation EVERY generation
+if (inv_freq == 0.0) {
+catn("Generation " + (sim.cycle - START_GEN) + ": Inversion LOST (replicate " + jobID + ")");
+sim.simulationFinished();
+}
+if (inv_freq >= 0.99) {
+catn("Generation " + (sim.cycle - START_GEN) + ": Inversion FIXED (replicate " + jobID + ")");
+sim.simulationFinished();
+}
+	
+// Detailed logging every 1000 generations after gen 1000
+if (sim.cycle >= START_GEN + 1000 & (sim.cycle - START_GEN) % LOG_INTERVAL == 0) {
 numSTD = 0;
 numHET = 0;
 numINV = 0;
@@ -107,18 +120,8 @@ catn("Gen " + gensSinceIntro + " (cycle " + sim.cycle + ") | Job " + jobID +
 " | Inv freq: " + inv_freq +
 " | STD: " + numSTD + " HET: " + numHET + " INV: " + numINV);
 }
-    
-// Check for loss/fixation
-if (inv_freq == 0.0) { //loss
-catn("Generation " + (sim.cycle - START_GEN) + ": Inversion LOST (replicate " + jobID + ")");
-sim.simulationFinished();
-}
-if (inv_freq >= 0.99) { // fixation
-catn("Generation " + (sim.cycle - START_GEN) + ": Inversion FIXED (replicate " + jobID + ")");
-sim.simulationFinished();
-}
-    
-// Save at end
+	
+// Save at end if polymorphic
 if (sim.cycle == START_GEN + INV_TRACKING_GENS) {
 if (inv_freq > 0.0 & inv_freq < 0.99) {
 catn("SUCCESS: Replicate " + jobID + " maintained polymorphism");
