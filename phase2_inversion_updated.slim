@@ -82,44 +82,42 @@ if (sim.cycle > START_GEN + INV_TRACKING_GENS) return;
 p1.fitnessScaling = K_ANCESTRAL / p1.individualCount;
 }
 
-// Track inversion frequency
 2: late() {
-//Stop after tracking period
+// Don't track until 1000 generations after introduction
+if (sim.cycle < START_GEN + 1000) return;
+// Stop after tracking period
 if (sim.cycle > START_GEN + INV_TRACKING_GENS) return;
 inv_count = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3));
 inv_freq = inv_count / (2.0 * p1.individualCount);
-	
-//Log relative to START_GEN
+    
+// Log every 1000 generations
 if ((sim.cycle - START_GEN) % LOG_INTERVAL == 0) {
 numSTD = 0;
 numHET = 0;
 numINV = 0;
-		
 for (ind in p1.individuals) {
 inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
 if (inv_copies == 0) numSTD = numSTD + 1;
 else if (inv_copies == 1) numHET = numHET + 1;
 else numINV = numINV + 1;
 }
-		
-//Show generations since introduction
 gensSinceIntro = sim.cycle - START_GEN;
 catn("Gen " + gensSinceIntro + " (cycle " + sim.cycle + ") | Job " + jobID +
 " | Inv freq: " + inv_freq +
 " | STD: " + numSTD + " HET: " + numHET + " INV: " + numINV);
 }
-
-// Simulation control
-if (inv_freq == 0.0) {
+    
+// Check for loss/fixation
+if (inv_freq == 0.0) { //loss
 catn("Generation " + (sim.cycle - START_GEN) + ": Inversion LOST (replicate " + jobID + ")");
 sim.simulationFinished();
 }
-if (inv_freq >= 0.99) {
+if (inv_freq >= 0.99) { // fixation
 catn("Generation " + (sim.cycle - START_GEN) + ": Inversion FIXED (replicate " + jobID + ")");
 sim.simulationFinished();
 }
-	
-//Save at end of tracking period
+    
+// Save at end
 if (sim.cycle == START_GEN + INV_TRACKING_GENS) {
 if (inv_freq > 0.0 & inv_freq < 0.99) {
 catn("SUCCESS: Replicate " + jobID + " maintained polymorphism");
