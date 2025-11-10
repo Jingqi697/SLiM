@@ -1,0 +1,141 @@
+// Phase 2: Introduce inversion from burn-in state
+// Run 1000 independent replicates to capture cases where inversion persists
+
+initialize() {
+defineConstant("K_ANCESTRAL", 5000);
+defineConstant("L", 23e6);
+defineConstant("REC_RATE", 2e-8);
+defineConstant("INV_START", 2e6);
+defineConstant("INV_END", 13e6);
+defineConstant("MU_DELETERIOUS", 1e-8);
+defineConstant("DFE_SHAPE", 0.2);
+defineConstant("DFE_MEAN_S", -0.05);
+defineConstant("H_DOMINANCE", 0.0);
+	
+// Phase 2 parameters
+if (!exists("jobID")) defineConstant("jobID", 1); // Job array index for parallelization
+defineConstant("INV_TRACKING_GENS", 10 * K_ANCESTRAL); // Track for 50,000 generations
+defineConstant("LOG_INTERVAL", 1000); // Log every 1000 generations
+	
+// Model setup
+initializeSLiMModelType("nonWF");
+// Mutation types
+initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE);
+m2.convertToSubstitution = F;
+initializeMutationType("m3", 0.5, "f", 0.0); // Inversion marker
+m3.convertToSubstitution = F;
+defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+initializeGenomicElementType("g1", m2, 1.0);
+initializeGenomicElement(g1, 0, L-1);
+initializeMutationRate(MU_DELETERIOUS);
+initializeRecombinationRate(REC_RATE);
+}
+
+// Load burn-in state
+1 early() {
+sim.readFromPopulationFile("burnin_state_K=5000_simID=6359159518542726634.txt");
+	
+// Set random seed 
+setSeed(getSeed() + jobID);
+defineConstant("repID", getSeed());
+catn("Phase 2: Replicate " + jobID);
+catn("Loaded burn-in state, introducing inversion...");
+}
+
+// Introduce inversion on one chromosome
+1 late() {
+// Introduce inversion on one random chromosome
+p1.sampleIndividuals(1).haplosomes[0].addNewDrawnMutation(m3, INV_MARKER_POS);
+inv_freq = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p1.individualCount);
+catn("Generation 1: Inversion introduced. Frequency: " + inv_freq);
+}
+
+// Reproduction
+reproduction() {
+mate1 = p1.sampleIndividuals(1);
+mate2 = p1.sampleIndividuals(1);
+p1.addCrossed(mate1, mate2);
+}
+
+// Recombination suppression in heterozygotes
+recombination() {
+if (genome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+genome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
+return F; // Homozygote - normal recombination
+}
+else {
+// Heterozygote - suppress recombination in inversion
+inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+if (!any(inInv)) {
+return F;
+}
+else {
+breakpoints = breakpoints[!inInv];
+return T;
+}
+}
+}
+
+// Population size control
+2:INV_TRACKING_GENS early() {
+p1.fitnessScaling = K_ANCESTRAL / p1.individualCount;
+}
+
+// Track inversion frequency
+2:INV_TRACKING_GENS late() {
+	// Calculate inversion frequency
+	inv_count = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3));
+	inv_freq = inv_count / (2.0 * p1.individualCount);
+	
+	// Log to stdout every LOG_INTERVAL generations
+	if (sim.cycle % LOG_INTERVAL == 0) {
+		// Count genotypes
+		numSTD = 0;
+		numHET = 0;
+		numINV = 0;
+		
+		for (ind in p1.individuals) {
+			inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
+			if (inv_copies == 0) numSTD = numSTD + 1;
+			else if (inv_copies == 1) numHET = numHET + 1;
+			else numINV = numINV + 1;
+		}
+		
+		catn("Gen " + sim.cycle + " | Job " + jobID + 
+		     " | Inv freq: " + inv_freq + 
+		     " | STD: " + numSTD + " HET: " + numHET + " INV: " + numINV);
+	}
+	
+	// Check if inversion was lost
+	if (inv_freq == 0.0) {
+		catn("Generation " + sim.cycle + ": Inversion LOST (replicate " + jobID + ")");
+		sim.simulationFinished(); // Don't save output
+	}
+	
+	// Check if inversion fixed
+	if (inv_freq >= 0.99) {
+		catn("Generation " + sim.cycle + ": Inversion FIXED (replicate " + jobID + ")");
+		sim.simulationFinished(); // Don't save output
+	}
+}
+
+
+// End of tracking period - save if still polymorphic
+INV_TRACKING_GENS late() {
+inv_count = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3));
+inv_freq = inv_count / (2.0 * p1.individualCount);
+	
+if (inv_freq > 0.0 & inv_freq < 0.99) {
+// Inversion persisted as polymorphism - SAVE THIS!
+catn("SUCCESS: Replicate " + jobID + " maintained polymorphism");
+catn("Final inversion frequency: " + inv_freq);
+		
+outfile = "inversion_polymorphic_job=" + jobID + "_rep=" + repID + "_freq=" + inv_freq + ".txt";
+sim.outputFull(outfile);
+catn("Saved: " + outfile);
+}
+else {
+catn("Replicate " + jobID + " did not maintain polymorphism (freq_" + inv_freq + ")");
+}
+sim.simulationFinished();
+}
