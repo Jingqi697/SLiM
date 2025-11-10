@@ -43,13 +43,14 @@ catn("Phase 2: Replicate " + jobID);
 catn("Loaded burn-in state at generation " + START_GEN);
 }
 
-// Introduce inversion on one chromosome
-1 late() {
+1: late() {
+// Introduce at START_GEN
+if (sim.cycle == START_GEN) {
 p1.sampleIndividuals(1).haplosomes[0].addNewDrawnMutation(m3, INV_MARKER_POS);
 inv_freq = sum(p1.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p1.individualCount);
 catn("Generation " + sim.cycle + ": Inversion introduced. Frequency: " + inv_freq);
 }
-
+}
 // Reproduction
 reproduction() {
 mate1 = p1.sampleIndividuals(1);
