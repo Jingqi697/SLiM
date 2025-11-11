@@ -5,24 +5,24 @@ initialize() {
 	defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
 	defineConstant("K_CAGE", 1000);
 	defineConstant("NUM_GEN", 100);
-	defineConstant("N_FOUNDERS_LOW", 4);    // Single-founder (low diversity)
-	defineConstant("N_FOUNDERS_HIGH", 20);  // Multi-founder (high diversity)
+	defineConstant("N_FOUNDERS_LOW", 4);
+	defineConstant("N_FOUNDERS_HIGH", 20);
+	defineConstant("LOG_INTERVAL", 10);
 	
 	if (!exists("REP_ID"))
 		defineConstant("REP_ID", 1);
 	setSeed(getSeed() + REP_ID);
 	
-	// Model setup
 	initializeSLiMModelType("nonWF");
-	
-	// Will be loaded from file, just need to initialize the model type
 }
 
 1 early() {
-	// Load burn-in state
 	sim.readFromPopulationFile(BURN_IN_FILE);
 	
-	// Retrieve constants from loaded file
+	// Record START_GEN after loading
+	defineConstant("START_GEN", sim.cycle);
+	
+	// Retrieve constants
 	defineConstant("m2", sim.mutationType("m2"));
 	defineConstant("m3", sim.mutationType("m3"));
 	defineConstant("K_ANCESTRAL", sim.getValue("K_ANCESTRAL"));
@@ -30,38 +30,30 @@ initialize() {
 	defineConstant("INV_END", sim.getValue("INV_END"));
 	defineConstant("INV_MARKER_POS", sim.getValue("INV_MARKER_POS"));
 	
-	// Create new cage populations (EMPTY initially)
-	sim.addSubpop("p2", 0);  // p2 = Low-Founder (Single-founder)
-	sim.addSubpop("p3", 0);  // p3 = High-Founder (Multi-founder)
+	// Create empty cage populations
+	sim.addSubpop("p2", 0);
+	sim.addSubpop("p3", 0);
 	
-	// Setup logging
-	defineConstant("LOG_FILE", "experiment_logs/rep_" + REP_ID + ".csv");
-	writeFile(LOG_FILE, "Rep,Gen,Pop,N,STD_STD,STD_INV,INV_INV");
-	
-	// Find STD/INV heterozygotes in p1
+	// Find heterozygotes
 	inds_HET = p1.individuals[p1.individuals.genomes.countOfMutationsOfType(m3) == 1];
 	
 	if (size(inds_HET) < N_FOUNDERS_HIGH) {
-		stop("ERROR: Not enough heterozygotes in burn-in file!");
+		stop("ERROR: Not enough heterozygotes!");
 	}
 	
-	// Seed p2 (Low-Founder) - MOVE founders, don't cross
-	founders_low = sample(inds_HET, N_FOUNDERS_LOW);
-	p2.takeMigrants(founders_low);
+	// Move founders
+	p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW));
+	p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
 	
-	// Seed p3 (High-Founder) - MOVE founders, don't cross
-	founders_high = sample(inds_HET, N_FOUNDERS_HIGH);
-	p3.takeMigrants(founders_high);
+	// Remove p1
+	p1.removeIndividuals(p1.individuals);
 	
-	// Clean up p1 (no longer needed)
-	sim.subpopulations[sim.subpopulations.id == 1].removeIndividuals(p1.individuals);
-	
-	catn("Phase 3: Replicate " + REP_ID + " initialized");
+	catn("Phase 3: Replicate " + REP_ID);
+	catn("Loaded from generation " + START_GEN);
 	catn("p2 (Low-Founder): " + p2.individualCount + " founders");
 	catn("p3 (High-Founder): " + p3.individualCount + " founders");
 }
 
-// Reproduction for cage populations
 reproduction(p2) {
 	mate1 = p2.sampleIndividuals(1);
 	mate2 = p2.sampleIndividuals(1);
@@ -74,15 +66,21 @@ reproduction(p3) {
 	p3.addCrossed(mate1, mate2);
 }
 
-// Density-dependent regulation
-1:(NUM_GEN + 1) early() {
+1: early() {
+	if (!exists("START_GEN")) return;
+	
+	// Check if experiment is complete
+	if (sim.cycle > START_GEN + NUM_GEN) {
+		sim.simulationFinished();
+	}
+	
+	// Density-dependent regulation
 	if (p2.individualCount > 0)
 		p2.fitnessScaling = K_CAGE / p2.individualCount;
 	if (p3.individualCount > 0)
 		p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
 
-// Recombination suppression in heterozygotes
 recombination() {
 	if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
 	    haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
@@ -100,35 +98,51 @@ recombination() {
 	}
 }
 
-// Data collection
-1:NUM_GEN late() {
-	// Count genotypes for p2 (Low-Founder)
-	numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0;
-	for (ind in p2.individuals) {
-		inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
-		if (inv_copies == 0) numSTD_LF = numSTD_LF + 1;
-		else if (inv_copies == 1) numHET_LF = numHET_LF + 1;
-		else numINV_LF = numINV_LF + 1;
-	}
-	line_LF = REP_ID + "," + sim.cycle + ",LF," + p2.individualCount + "," + 
-	          numSTD_LF + "," + numHET_LF + "," + numINV_LF;
-	writeFile(LOG_FILE, line_LF, append=T);
+1: late() {
+	if (!exists("START_GEN")) return;
 	
-	// Count genotypes for p3 (High-Founder)
-	numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0;
-	for (ind in p3.individuals) {
-		inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
-		if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
-		else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
-		else numINV_MF = numINV_MF + 1;
+	gensSinceStart = sim.cycle - START_GEN;
+	
+	// Log every LOG_INTERVAL generations
+	if (gensSinceStart % LOG_INTERVAL == 0) {
+		// Count p2
+		numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0;
+		for (ind in p2.individuals) {
+			inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
+			if (inv_copies == 0) numSTD_LF = numSTD_LF + 1;
+			else if (inv_copies == 1) numHET_LF = numHET_LF + 1;
+			else numINV_LF = numINV_LF + 1;
+		}
+		inv_freq_LF = sum(p2.individuals.genomes.countOfMutationsOfType(m3)) / (2.0 * p2.individualCount);
+		
+		// Count p3
+		numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0;
+		for (ind in p3.individuals) {
+			inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
+			if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
+			else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
+			else numINV_MF = numINV_MF + 1;
+		}
+		inv_freq_MF = sum(p3.individuals.genomes.countOfMutationsOfType(m3)) / (2.0 * p3.individualCount);
+		
+		// Log
+		catn("Gen " + gensSinceStart + " (cycle " + sim.cycle + ") | Rep " + REP_ID);
+		catn("  LF: Inv freq=" + inv_freq_LF + " | STD=" + numSTD_LF + " HET=" + numHET_LF + " INV=" + numINV_LF);
+		catn("  MF: Inv freq=" + inv_freq_MF + " | STD=" + numSTD_MF + " HET=" + numHET_MF + " INV=" + numINV_MF);
 	}
-	line_MF = REP_ID + "," + sim.cycle + ",MF," + p3.individualCount + "," + 
-	          numSTD_MF + "," + numHET_MF + "," + numINV_MF;
-	writeFile(LOG_FILE, line_MF, append=T);
-}
-
-// End of simulation
-NUM_GEN late() {
-	catn("--- Experiment replicate " + REP_ID + " complete ---");
-	sim.simulationFinished();
+	
+	// Save at end
+	if (sim.cycle == START_GEN + NUM_GEN) {
+		catn("\n--- Replicate " + REP_ID + " complete ---");
+		
+		outfile_LF = "cage_LF_rep=" + REP_ID + "_gen=" + NUM_GEN + ".txt";
+		p2.outputSample(p2.individualCount, filePath=outfile_LF);
+		catn("Saved: " + outfile_LF);
+		
+		outfile_MF = "cage_MF_rep=" + REP_ID + "_gen=" + NUM_GEN + ".txt";
+		p3.outputSample(p3.individualCount, filePath=outfile_MF);
+		catn("Saved: " + outfile_MF);
+		
+		sim.simulationFinished();
+	}
 }
