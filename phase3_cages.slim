@@ -1,0 +1,138 @@
+// Phase 3: Population cages
+
+initialize() {
+// Parameters
+defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
+defineConstant("K_CAGE", 1000); // Population cage carrying capacity
+defineConstant("NUM_GEN", 100); // Number of generations for the experiment
+defineConstant("N_FOUNDERS_LOW", 4); // "Low-Founder" cage (1F + 3M)
+defineConstant("N_FOUNDERS_HIGH", 20); // "Multi-Founder" cage (10F + 10M)
+if (!exists("REP_ID"))
+defineConstant("REP_ID", 1);
+setSeed(getSeed() + REP_ID); // Set seed for this replicate
+// Modle set up
+sim.readFromPopulationFile(BURN_IN_FILE);
+// Old parameters
+defineConstant("p1", sim.subpop("p1"));
+defineConstant("m2", sim.mutationType(m2));
+defineConstant("m3", sim.mutationType(m3)); 
+defineConstant("K_ANCESTRAL", sim.getValue("K_ANCESTRAL"));
+defineConstant("INV_START", sim.getValue("INV_START"));
+defineConstant("INV_END", sim.getValue("INV_END"));
+defineConstant("INV_MARKER_POS", sim.getValue("INV_MARKER_POS"));
+// New cage populations
+sim.addSubpop("p2", K_CAGE); // p2 = Low-Founder 
+sim.addSubpop("p3", K_CAGE); // p3 = High-Founder 
+// Log
+defineConstant("LOG_FILE", "experiment_logs/rep_" + REP_ID + ".csv");
+writeFile(LOG_FILE, "Rep,Gen,Pop,N,ST_ST,ST_INV,INV_INV");
+}
+
+// Population dynamics
+reproduction(p2) {  // Reproduction
+mate1 = p2.sampleIndividuals(1);
+mate2 = p2.sampleIndividuals(1);
+p2.addCrossed(mate1, mate2); 
+}
+reproduction(p3) {
+mate1 = p3.sampleIndividuals(1);
+mate2 = p3.sampleIndividuals(1);
+p3.addCrossed(mate1, mate2);
+}
+1:(NUM_GEN + 1) early() {  // Density-dependent death
+if (p1.individualCount > 0)
+p1.fitnessScaling = K_ANCESTRAL / p1.individualCount;
+if (p2.individualCount > 0)
+p2.fitnessScaling = K_CAGE / p2.individualCount;
+if (p3.individualCount > 0)
+p3.fitnessScaling = K_CAGE / p3.individualCount;
+}
+
+//Recombination 
+recombination() {
+if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
+return F;
+}
+else {
+inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+if (!any(inInv)) {
+return F;
+}
+else {
+breakpoints = breakpoints[!inInv];
+return T;
+}
+}
+}
+
+
+// Populatiuon founders
+1 late() {
+// Find ST/INV HET in p1
+inds_HET = p1.individuals[p1.individuals.haplosomes.countOfMutationsOfType(m3) == 1];
+// Seed p2
+founders_low = sample(inds_HET, N_FOUNDERS_LOW);
+p2.addCrossed(founders_low, founders_low);
+// Seed p3 
+founders_high = sample(inds_HET, N_FOUNDERS_HIGH);
+p3.addCrossed(founders_high, founders_high);
+//Clean up
+ p1.removeIndividuals(p1.individuals);
+    
+//Log initial state
+// Count for p2 (LF)
+numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0;
+for (ind in p2.individuals) {
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
+if (inv_copies == 0) numSTD_LF = numSTD_LF + 1;
+else if (inv_copies == 1) numHET_LF = numHET_LF + 1;
+else numINV_LF = numINV_LF + 1;
+}
+counts_LF = c(p2.individualCount, numSTD_LF, numHET_LF, numINV_LF);
+line_LF = REP_ID + "," + sim.cycle + ",LF," + paste(counts_LF, ",");
+writeFile(LOG_FILE, line_LF, append=T);
+// Count for p3 (MF)
+numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0;
+for (ind in p3.individuals) {
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
+if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
+else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
+else numINV_MF = numINV_MF + 1;
+}
+counts_MF = c(p3.individualCount, numSTD_MF, numHET_MF, numINV_MF);
+line_MF = REP_ID + "," + sim.cycle + ",MF," + paste(counts_MF, ",");
+writeFile(LOG_FILE, line_MF, append=T);
+}
+
+//Data Collection
+2:NUM_GEN late() {
+// Count for p2 
+numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0;
+for (ind in p2.individuals) {
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
+if (inv_copies == 0) numSTD_LF = numSTD_LF + 1;
+else if (inv_copies == 1) numHET_LF = numHET_LF + 1;
+ else numINV_LF = numINV_LF + 1;
+}
+counts_LF = c(p2.individualCount, numSTD_LF, numHET_LF, numINV_LF);
+line_LF = REP_ID + "," + sim.cycle + ",LF," + paste(counts_LF, ",");
+writeFile(LOG_FILE, line_LF, append=T);
+// Count for p3 (MF)
+numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0;
+for (ind in p3.individuals) {
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
+if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
+else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
+else numINV_MF = numINV_MF + 1;
+}
+counts_MF = c(p3.individualCount, numSTD_MF, numHET_MF, numINV_MF);
+line_MF = REP_ID + "," + sim.cycle + ",MF," + paste(counts_MF, ",");
+writeFile(LOG_FILE, line_MF, append=T);
+}
+
+// End of simulation
+NUM_GEN+1 late() {
+catn("--- Experiment replicate " + REP_ID + " complete ---");
+sim.simulationFinished();
+}
