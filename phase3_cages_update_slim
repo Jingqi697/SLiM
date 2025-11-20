@@ -47,7 +47,7 @@ defineConstant("START_GEN", sim.cycle); // Set the current generation as START_G
 sim.addSubpop("p2", 0);
 sim.addSubpop("p3", 0);
 // Find heterozygotes
-inds_HET = p1.individuals[p1.individuals.genomes.countOfMutationsOfType(m3) == 1]; // Count hoow many m3 marker each genome has, 1=het
+inds_HET = p1.individuals[p1.individuals.haplosomes.countOfMutationsOfType(m3) == 1]; // Count hoow many m3 marker each genome has, 1=het
 if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
 stop("Not enough het");
 }
@@ -111,21 +111,21 @@ if (gensSinceStart % LOG_INTERVAL == 0) {
 // Count p2
 numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0; 
 for (ind in p2.individuals) {
-inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
 if (inv_copies == 0) numSTD_LF = numSTD_LF + 1; // STD Homozygote
 else if (inv_copies == 1) numHET_LF = numHET_LF + 1; // Heterozygote
 else numINV_LF = numINV_LF + 1; // INV homozygote
 }
-inv_freq_LF = sum(p2.individuals.genomes.countOfMutationsOfType(m3)) / (2.0 * p2.individualCount); // Inversion frequency
+inv_freq_LF = sum(p2.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p2.individualCount); // Inversion frequency
 // Count p3
 numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0; 
 for (ind in p3.individuals) {
-inv_copies = sum(ind.genomes.countOfMutationsOfType(m3));
+inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
 if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
 else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
 else numINV_MF = numINV_MF + 1;
 }
-inv_freq_MF = sum(p3.individuals.genomes.countOfMutationsOfType(m3)) / (2.0 * p3.individualCount);
+inv_freq_MF = sum(p3.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p3.individualCount);
 		
 // Log
 catn("Gen " + gensSinceStart + " (cycle " + sim.cycle + ") | Rep " + REP_ID);
