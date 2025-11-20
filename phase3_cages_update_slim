@@ -20,12 +20,29 @@ initializeSLiMModelType("nonWF");
 sim.readFromPopulationFile(BURN_IN_FILE);
 defineConstant("START_GEN", sim.cycle); // Set the current generation as START_GEN
 // Retrieve constants
-defineConstant("m2", sim.mutationType("m2"));
-defineConstant("m3", sim.mutationType("m3"));
-defineConstant("K_ANCESTRAL", sim.getValue("K_ANCESTRAL"));
-defineConstant("INV_START", sim.getValue("INV_START"));
-defineConstant("INV_END", sim.getValue("INV_END"));
-defineConstant("INV_MARKER_POS", sim.getValue("INV_MARKER_POS"));
+defineConstant("K_ANCESTRAL", 5000); // Population carrying capacity
+defineConstant("L", 23e6); // Chromosome 2L
+defineConstant("REC_RATE", 2e-8); // Recombination rate
+defineConstant("INV_START", 2e6);
+defineConstant("INV_END", 13e6); // Inversion In(2L)t -- 11 Mb
+defineConstant("MU_DELETERIOUS", 1e-8);
+defineConstant("DFE_SHAPE", 0.2);
+defineConstant("DFE_MEAN_S", -0.05); // Deleterious mutation fitness cost, gamma distribution with mewan of -0.05
+defineConstant("H_DOMINANCE", 0.0); // Fully recessive
+defineConstant("BURN_IN_GENS", 10 * K_ANCESTRAL); // Burn-in lasts for 50000 generations
+defineConstant("INV_BURN_IN_GENS", 10 * K_ANCESTRAL);
+
+// Deleterious mutation m2
+initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE);
+m2.convertToSubstitution = F;
+// Inversion marker m3
+initializeMutationType("m3", 0.5, "f", 0.0);
+m3.convertToSubstitution = F;
+defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+initializeGenomicElementType("g1", m2, 1.0);
+initializeGenomicElement(g1, 0, L-1); // Standard chromosome
+initializeMutationRate(MU_DELETERIOUS);
+initializeRecombinationRate(REC_RATE);
 
 // Cage set up
 // Create empty cage populations
