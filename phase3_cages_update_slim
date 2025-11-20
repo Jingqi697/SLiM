@@ -33,7 +33,7 @@ sim.addSubpop("p2", 0);
 sim.addSubpop("p3", 0);
 // Find heterozygotes
 inds_HET = p1.individuals[p1.individuals.genomes.countOfMutationsOfType(m3) == 1]; // Count hoow many m3 marker each genome has, 1=het
-if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW) { 
+if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
 stop("Not enough het");
 }
 // Move founders
