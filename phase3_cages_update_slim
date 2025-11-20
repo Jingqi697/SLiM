@@ -117,4 +117,4 @@ catn("Gen " + gensSinceStart + " (cycle " + sim.cycle + ") | Rep " + REP_ID);
 catn("  LF: Inv freq=" + inv_freq_LF + " | STD=" + numSTD_LF + " HET=" + numHET_LF + " INV=" + numINV_LF);
 catn("  MF: Inv freq=" + inv_freq_MF + " | STD=" + numSTD_MF + " HET=" + numHET_MF + " INV=" + numINV_MF);
 }
-
+}
