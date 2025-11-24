@@ -47,14 +47,14 @@ defineConstant("START_GEN", sim.cycle); // Set the current generation as START_G
 sim.addSubpop("p2", 0);
 sim.addSubpop("p3", 0);
 // Find heterozygotes
-inds_HET = p1.individuals[p1.individuals.haplosomes.countOfMutationsOfType(m3) == 1]; // Count hoow many m3 marker each genome has, 1=het
+inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; // Count how many m3 marker each genome has, 1=het
 if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
 stop("Not enough het");
 }
 // Move founders
 p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW));
 p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
-p1.removeIndividuals(p1.individuals); // Remove p1
+p1.removeSubpopulation(); // Remove p1
 catn("Phase 3: Replicate " + REP_ID);
 catn("Start generation " + START_GEN);
 catn("Low-Founder: " + p2.individualCount + " founders");
@@ -131,5 +131,6 @@ inv_freq_MF = sum(p3.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 *
 catn("Gen " + gensSinceStart + " (cycle " + sim.cycle + ") | Rep " + REP_ID);
 catn("  LF: Inv freq=" + inv_freq_LF + " | STD=" + numSTD_LF + " HET=" + numHET_LF + " INV=" + numINV_LF);
 catn("  MF: Inv freq=" + inv_freq_MF + " | STD=" + numSTD_MF + " HET=" + numHET_MF + " INV=" + numINV_MF);
+}
 }
 }
