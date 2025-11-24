@@ -1,0 +1,58 @@
+// SAVE THIS AS: filter_heterozygotes.slim
+initialize() {
+	defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
+	defineConstant("OUTPUT_FILE", "heterozygotes_only.txt"); 
+	
+	// Constants
+	defineConstant("L", 23e6); 
+	defineConstant("REC_RATE", 2e-8); 
+	defineConstant("INV_START", 2e6);
+	defineConstant("INV_END", 13e6); 
+	defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+
+	initializeSLiMModelType("nonWF");
+	
+	initializeMutationType("m2", 0.0, "g", -0.05, 0.2);
+	m2.convertToSubstitution = F;
+	initializeMutationType("m3", 0.5, "f", 0.0);
+	m3.convertToSubstitution = F;
+	
+	initializeGenomicElementType("g1", m2, 1.0);
+	initializeGenomicElement(g1, 0, L-1); 
+	initializeMutationRate(1e-8);
+	initializeRecombinationRate(REC_RATE);
+}
+
+1 early() {
+	catn("Loading massive file...");
+	sim.readFromPopulationFile(BURN_IN_FILE);
+	catn("File loaded. Tick is now: " + sim.cycle);
+	catn("Original Population size: " + p1.individualCount);
+	
+	// --- FILTERING LOGIC ---
+	
+	catn("Filtering for heterozygotes...");
+	
+	// 1. Identify Heterozygotes (Keep these)
+	inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1];
+	catn("Found " + size(inds_HET) + " heterozygotes.");
+	
+	if (size(inds_HET) == 0) stop("Error: No heterozygotes found!");
+
+	// 2. Identify Non-Heterozygotes (Delete these)
+	others = p1.individuals[p1.individuals.countOfMutationsOfType(m3) != 1];
+	
+	// 3. Remove them using the correct simulation-level command
+	if (size(others) > 0) {
+		catn("Removing " + size(others) + " non-heterozygotes...");
+		sim.killIndividuals(others); // <--- FIXED HERE
+	}
+		
+	catn("Final filtered population size: " + p1.individualCount);
+	
+	// 4. Save the new lightweight file
+	sim.outputFull(OUTPUT_FILE);
+	catn("SUCCESS: Saved filtered population to: " + OUTPUT_FILE);
+	
+	sim.simulationFinished();
+}
