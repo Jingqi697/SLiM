@@ -1,89 +1,103 @@
-// Phase 3: Population cages - Testing AOD hypothesis
+// Phase 3: Population cages - Testing AOD hypothesis (FIXED VERSION)
 
 initialize() {
-// Parameters
-defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
-defineConstant("K_CAGE", 1000); // Cage carrying capacity
-defineConstant("NUM_GEN", 100); // Experiment generation - 100
-defineConstant("N_FOUNDERS_LOW", 4); // Low-founders
-defineConstant("N_FOUNDERS_HIGH", 20); // High-founders
-defineConstant("LOG_INTERVAL", 1);
-// Retrieve constants
-defineConstant("K_ANCESTRAL", 5000); // Population carrying capacity
-defineConstant("L", 23e6); // Chromosome 2L
-defineConstant("REC_RATE", 2e-8); // Recombination rate
-defineConstant("INV_START", 2e6);
-defineConstant("INV_END", 13e6); // Inversion In(2L)t -- 11 Mb
-defineConstant("MU_DELETERIOUS", 1e-8);
-defineConstant("DFE_SHAPE", 0.2);
-defineConstant("DFE_MEAN_S", -0.05); // Deleterious mutation fitness cost, gamma distribution with mewan of -0.05
-defineConstant("H_DOMINANCE", 0.0); // Fully recessive
-defineConstant("BURN_IN_GENS", 10 * K_ANCESTRAL); // Burn-in lasts for 50000 generations
-defineConstant("INV_BURN_IN_GENS", 10 * K_ANCESTRAL);
-// Define seed	
-if (!exists("REP_ID"))
-defineConstant("REP_ID", 1);
-setSeed(getSeed() + REP_ID); // Each array task get a different ID
-// Model set up	
-initializeSLiMModelType("nonWF");
-// Deleterious mutation m2
-initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE);
-m2.convertToSubstitution = F;
-// Inversion marker m3
-initializeMutationType("m3", 0.5, "f", 0.0);
-m3.convertToSubstitution = F;
-defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
-initializeGenomicElementType("g1", m2, 1.0);
-initializeGenomicElement(g1, 0, L-1); // Standard chromosome
-initializeMutationRate(MU_DELETERIOUS);
-initializeRecombinationRate(REC_RATE);
+	// Parameters
+	// Note: If you use the small "heterozygotes_only.txt" file here, it will load instantly.
+	defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
+	
+	defineConstant("K_CAGE", 1000); 
+	defineConstant("NUM_GEN", 100); 
+	defineConstant("N_FOUNDERS_LOW", 4); 
+	defineConstant("N_FOUNDERS_HIGH", 20);
+	defineConstant("LOG_INTERVAL", 1);
+	
+	// Constants
+	defineConstant("L", 23e6); 
+	defineConstant("REC_RATE", 2e-8); 
+	defineConstant("INV_START", 2e6);
+	defineConstant("INV_END", 13e6); 
+	defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+	
+	// Set Seed
+	if (!exists("REP_ID")) defineConstant("REP_ID", 1);
+	setSeed(getSeed() + REP_ID); 
+	
+	initializeSLiMModelType("nonWF");
+	
+	// Mutation Types
+	initializeMutationType("m2", 0.0, "g", -0.05, 0.2);
+	m2.convertToSubstitution = F;
+	
+	initializeMutationType("m3", 0.5, "f", 0.0);
+	m3.convertToSubstitution = F;
+	
+	initializeGenomicElementType("g1", m2, 1.0);
+	initializeGenomicElement(g1, 0, L-1); 
+	initializeMutationRate(1e-8);
+	initializeRecombinationRate(REC_RATE);
 }
 
+// --- 1. SETUP & LOADING ---
 1 early() {
-sim.readFromPopulationFile(BURN_IN_FILE);
-defineConstant("START_GEN", sim.cycle); // Set the current generation as START_GEN
-// Cage set up
-// Create empty cage populations
-sim.addSubpop("p2", 0);
-sim.addSubpop("p3", 0);
-// Find heterozygotes
-inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; // Count how many m3 marker each genome has, 1=het
-if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
-stop("Not enough het");
-}
-// Move founders
-p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW));
-p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
-p1.removeSubpopulation(); // Remove p1
-catn("Phase 3: Replicate " + REP_ID);
-catn("Start generation " + START_GEN);
-catn("Low-Founder: " + p2.individualCount + " founders");
-catn("High-Founder: " + p3.individualCount + " founders");
+	catn("Loading file...");
+	sim.readFromPopulationFile(BURN_IN_FILE);
+	
+	// Capture the CURRENT tick from the file (e.g., 100000)
+	current_tick = sim.cycle;
+	defineConstant("START_GEN", current_tick); 
+	
+	catn("File Loaded. Current Tick: " + current_tick);
+
+	sim.addSubpop("p2", 0);
+	sim.addSubpop("p3", 0);
+	
+	// Filter Heterozygotes
+	// (Using 'genome1' syntax for SLiM 4.x compatibility)
+	inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; 
+	
+	if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
+		stop("Not enough heterozygotes found!");
+	}
+	
+	// Move founders
+	p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW));
+	p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
+	
+	// --- FIX 1: IMMEDIATE CLEANUP ---
+	// Explicitly kill p1 individuals to free memory and prevent "Zombie" processing
+	catn("Cleaning up p1 (This may pause for a moment)...");
+	sim.killIndividuals(p1.individuals);
+	p1.removeSubpopulation(); 
+	
+	// --- FIX 2: DYNAMIC SCHEDULING ---
+	// Schedule the Check/Log events relative to the loaded tick
+	community.rescheduleScriptBlock(s1, start=current_tick + 1, end=current_tick + NUM_GEN);
+	community.rescheduleScriptBlock(s2, start=current_tick, end=current_tick + NUM_GEN);
+	
+	// Apply Fitness Scaling immediately for this tick
+	p2.fitnessScaling = K_CAGE / p2.individualCount;
+	p3.fitnessScaling = K_CAGE / p3.individualCount;
+
+	catn("Phase 3: Setup Complete. Starting experiment.");
+	// CSV Header for easy analysis
+	catn("Rep,Gen,Tick,P2_N,P3_N,LF_Freq,MF_Freq,LF_Het,MF_Het");
 }
 
-// Population dynamics
+// --- 2. POPULATION DYNAMICS ---
+
+// Safety: Prevent p1 from reproducing if any ghosts remain
+reproduction(p1) { self.active = 0; }
+
 reproduction(p2) {
-mate1 = p2.sampleIndividuals(1);
-mate2 = p2.sampleIndividuals(1);
-p2.addCrossed(mate1, mate2);
-}
-reproduction(p3) {
-mate1 = p3.sampleIndividuals(1);
-mate2 = p3.sampleIndividuals(1);
-p3.addCrossed(mate1, mate2);
+	mate1 = p2.sampleIndividuals(1);
+	mate2 = p2.sampleIndividuals(1);
+	p2.addCrossed(mate1, mate2);
 }
 
-1: early() {
-if (!exists("START_GEN")) return;
-// Check if experiment is complete
-if (sim.cycle > START_GEN + NUM_GEN) {
-sim.simulationFinished();
-}
-// Density-dependent regulation
-if (p2.individualCount > 0)
-p2.fitnessScaling = K_CAGE / p2.individualCount;
-if (p3.individualCount > 0)
-p3.fitnessScaling = K_CAGE / p3.individualCount;
+reproduction(p3) {
+	mate1 = p3.sampleIndividuals(1);
+	mate2 = p3.sampleIndividuals(1);
+	p3.addCrossed(mate1, mate2);
 }
 
 recombination() {
@@ -103,34 +117,36 @@ return T;
 }
 }
 
-1: late() {
-if (!exists("START_GEN")) return;
-gensSinceStart = sim.cycle - START_GEN;
-// Log every LOG_INTERVAL generations
-if (gensSinceStart % LOG_INTERVAL == 0) {
-// Count p2
-numSTD_LF = 0; numHET_LF = 0; numINV_LF = 0; 
-for (ind in p2.individuals) {
-inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
-if (inv_copies == 0) numSTD_LF = numSTD_LF + 1; // STD Homozygote
-else if (inv_copies == 1) numHET_LF = numHET_LF + 1; // Heterozygote
-else numINV_LF = numINV_LF + 1; // INV homozygote
+// --- 4. LOGGING & REGULATION ---
+
+// s1: Early Event (Fitness & Stop Check)
+s1 1000000 early() { 
+	// Stop Condition
+	if (sim.cycle > START_GEN + NUM_GEN) {
+		catn("Experiment Finished at tick " + sim.cycle);
+		sim.simulationFinished();
+	}
+	// Regulation
+	if (p2.individualCount > 0) p2.fitnessScaling = K_CAGE / p2.individualCount;
+	if (p3.individualCount > 0) p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
-inv_freq_LF = sum(p2.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p2.individualCount); // Inversion frequency
-// Count p3
-numSTD_MF = 0; numHET_MF = 0; numINV_MF = 0; 
-for (ind in p3.individuals) {
-inv_copies = sum(ind.haplosomes.countOfMutationsOfType(m3));
-if (inv_copies == 0) numSTD_MF = numSTD_MF + 1;
-else if (inv_copies == 1) numHET_MF = numHET_MF + 1;
-else numINV_MF = numINV_MF + 1;
-}
-inv_freq_MF = sum(p3.individuals.haplosomes.countOfMutationsOfType(m3)) / (2.0 * p3.individualCount);
+
+// s2: Late Event (Stats & Logging)
+s2 1000000 late() { 
+	gensSinceStart = sim.cycle - START_GEN;
+	
+	if (gensSinceStart % LOG_INTERVAL == 0) {
 		
-// Log
-catn("Gen " + gensSinceStart + " (cycle " + sim.cycle + ") | Rep " + REP_ID);
-catn("  LF: Inv freq=" + inv_freq_LF + " | STD=" + numSTD_LF + " HET=" + numHET_LF + " INV=" + numINV_LF);
-catn("  MF: Inv freq=" + inv_freq_MF + " | STD=" + numSTD_MF + " HET=" + numHET_MF + " INV=" + numINV_MF);
-}
-}
+		// Calculate Inversion Frequencies
+		freq_LF = sum(p2.individuals.countOfMutationsOfType(m3)) / (2.0 * p2.individualCount);
+		freq_MF = sum(p3.individuals.countOfMutationsOfType(m3)) / (2.0 * p3.individualCount);
+		
+		// Calculate Observed Heterozygosity (For AOD Testing)
+		// Count individuals with exactly 1 marker
+		het_LF = sum(p2.individuals.countOfMutationsOfType(m3) == 1) / p2.individualCount;
+		het_MF = sum(p3.individuals.countOfMutationsOfType(m3) == 1) / p3.individualCount;
+		
+		// Log
+		catn(REP_ID + "," + gensSinceStart + "," + sim.cycle + "," + p2.individualCount + "," + p3.individualCount + "," + freq_LF + "," + freq_MF + "," + het_LF + "," + het_MF);
+	}
 }
