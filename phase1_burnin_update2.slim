@@ -1,0 +1,55 @@
+// Phase 1: Load burn-in
+// Allow recessive deleterious mutations to spread throughout the population
+
+initialize() {
+// Parameters
+defineConstant("K_ANCESTRAL", 5000); // Population carrying capacity 
+defineConstant("L", 23e6); // Chromosome 2L
+defineConstant("REC_RATE", 2e-8); // Recombination rate
+defineConstant("INV_START", 2e6);
+defineConstant("INV_END", 13e6); // Inversion In(2L)t -- 11 Mb
+defineConstant("MU_DELETERIOUS", 1e-8); 
+defineConstant("DFE_SHAPE", 0.2);
+defineConstant("DFE_MEAN_S", -0.03); // Deleterious mutation fitness cost, gamma distribution
+defineConstant("H_DOMINANCE", 0.0); // Fully recessive 
+defineConstant("BURN_IN_GENS", 10 * K_ANCESTRAL); // Burn-in lasts for 50000 generations
+defineConstant("INV_BURN_IN_GENS", 10 * K_ANCESTRAL);
+// Model setup
+initializeSLiMModelType("nonWF");
+// Deleterious mutation m2
+initializeMutationType("m2", H_DOMINANCE, "g", DFE_MEAN_S, DFE_SHAPE);
+m2.convertToSubstitution = F;
+// Inversion marker m3
+initializeMutationType("m3", 0.5, "f", 0.0); 
+m3.convertToSubstitution = F;
+defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+initializeGenomicElementType("g1", m2, 1.0); 
+initializeGenomicElement(g1, 0, L-1); // Standard chromosome
+initializeMutationRate(MU_DELETERIOUS);
+initializeRecombinationRate(REC_RATE);
+}
+1 early() {
+sim.addSubpop("p1", K_ANCESTRAL); // Ancestral population p1
+defineConstant("simID", getSeed());
+}
+reproduction() { // Birth process
+mate1 = p1.sampleIndividuals(1);
+mate2 = p1.sampleIndividuals(1);
+p1.addCrossed(mate1, mate2); 
+}
+1:BURN_IN_GENS early() { // Population size control 
+p1.fitnessScaling = K_ANCESTRAL / p1.individualCount; 
+}
+1:BURN_IN_GENS late() { 
+if (sim.cycle % 1000 == 0) { // Make log for every 1000 generation
+count = p1.individualCount;
+fitness = mean(p1.cachedFitness(NULL));
+catn("Gen: " + sim.cycle + " | Pop Size: " + count + " | Mean Fitness: " + fitness); // Status update
+}
+}
+
+BURN_IN_GENS late() { // Save output
+catn("Burn-in complete");
+sim.outputFull("burnin_state_K=" + K_ANCESTRAL + "_simID=" + simID + ".txt");
+sim.simulationFinished();
+}
