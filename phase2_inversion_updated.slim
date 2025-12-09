@@ -40,7 +40,7 @@ initializeRecombinationRate(REC_RATE);
 
 // Load burn-in state
 1 early() {
-sim.readFromPopulationFile("burnin_state_K=5000_simID=6359159518542726634.txt"); //  Load burn-in population
+sim.readFromPopulationFile("burnin_state_K=5000_simID=1439042831852548468.txt"); //  Load burn-in population
 setSeed(getSeed() + jobID); // Job ID for array
 defineConstant("repID", getSeed()); // Store the seed for output
 defineConstant("START_GEN", sim.cycle);
