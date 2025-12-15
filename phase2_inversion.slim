@@ -69,7 +69,7 @@ haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
 return F;
 }
 else {
-nInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
 if (!any(inInv)) {
 return F;
 }
