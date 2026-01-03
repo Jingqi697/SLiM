@@ -1,7 +1,17 @@
 // Phase 3: population cage experiment
 initialize() {
+    // 1. SET ABSOLUTE PATHS FOR HPC ENVIRONMENT
+    defineConstant("BASE_DIR", "/scratch/cqh6wn/AOD_slim/Plots/2/");
+    defineConstant("BURN_IN_FILE", BASE_DIR + "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
+
+    // 2. SYNCHRONIZE jobID PASSED FROM SBATCH WITH REP_ID
+    if (!exists("jobID")) defineConstant("jobID", 1);
+    defineConstant("REP_ID", jobID);
+    
+    // 3. SET ABSOLUTE PATH FOR OUTPUT CSV
+    defineConstant("OUTPUT_FILE", BASE_DIR + "results/cage_results_rep" + REP_ID + ".csv");
+    
     // Parameters
-    defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
     defineConstant("K_CAGE", 1000); 
     defineConstant("NUM_GEN", 100); 
     defineConstant("N_FOUNDERS_LOW", 4);    // LF: single/few-founder [cite: 1265]
@@ -13,15 +23,11 @@ initialize() {
     defineConstant("INV_END", 13e6); 
     defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
     
-    // OUTPUT SETUP: Defined globally here
-    if (!exists("REP_ID")) defineConstant("REP_ID", 1);
-    defineConstant("OUTPUT_FILE", "cage_results_rep" + REP_ID + ".csv");
-    
     setSeed(getSeed() + REP_ID); 
     initializeSLiMModelType("nonWF");
     
     // Mutations
-    initializeMutationType("m2", 0.0, "g", -0.05, 0.2); // Recessive deleterious mutations [cite: 1274]
+    initializeMutationType("m2", 0.0, "g", -0.05, 0.2); // Recessive deleterious load [cite: 1274]
     m2.convertToSubstitution = F;
     initializeMutationType("m3", 0.5, "f", 0.0); // Inversion marker [cite: 1276]
     m3.convertToSubstitution = F;
@@ -40,7 +46,7 @@ initialize() {
     sim.addSubpop("p2", 0); // Low-founder (LF) cage [cite: 1265]
     sim.addSubpop("p3", 0); // Multi-founder (MF) cage [cite: 1267]
     
-    // Selection of Heterozygote founders
+    // Selection of Heterozygote founders [cite: 1167]
     inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; 
     if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
         stop("Not enough heterozygotes in burn-in file");
@@ -52,7 +58,7 @@ initialize() {
     sim.killIndividuals(p1.individuals);
     p1.removeSubpopulation(); 
     
-    // Initialize CSV Header
+    // Initialize CSV Header 
     header = "rep,gen,treatment,inv_freq,f_std,f_het,f_inv,m2_load";
     writeFile(OUTPUT_FILE, header, append=F);
     
@@ -98,12 +104,11 @@ s1 1000000 early() {
     if (p3.individualCount > 0) p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
 
-// Data Logging
+// Data Logging 
 s2 1000000 late() { 
     gensSinceStart = sim.cycle - START_GEN;
     
     if (gensSinceStart % LOG_INTERVAL == 0) {
-        // Use c() to create the list of objects for iteration
         populations = c(p2, p3);
         labels = c("LF", "MF");
         
