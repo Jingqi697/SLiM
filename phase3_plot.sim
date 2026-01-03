@@ -14,8 +14,8 @@ initialize() {
     // Parameters
     defineConstant("K_CAGE", 1000); 
     defineConstant("NUM_GEN", 100); 
-    defineConstant("N_FOUNDERS_LOW", 4);    // LF: single/few-founder [cite: 1265]
-    defineConstant("N_FOUNDERS_HIGH", 20);  // MF: multi-founder [cite: 1267]
+    defineConstant("N_FOUNDERS_LOW", 4);    
+    defineConstant("N_FOUNDERS_HIGH", 20);  
     defineConstant("LOG_INTERVAL", 1); 
     defineConstant("L", 23e6); 
     defineConstant("REC_RATE", 2e-8); 
@@ -27,9 +27,9 @@ initialize() {
     initializeSLiMModelType("nonWF");
     
     // Mutations
-    initializeMutationType("m2", 0.0, "g", -0.05, 0.2); // Recessive deleterious load [cite: 1274]
+    initializeMutationType("m2", 0.0, "g", -0.05, 0.2); 
     m2.convertToSubstitution = F;
-    initializeMutationType("m3", 0.5, "f", 0.0); // Inversion marker [cite: 1276]
+    initializeMutationType("m3", 0.5, "f", 0.0); 
     m3.convertToSubstitution = F;
     
     initializeGenomicElementType("g1", m2, 1.0);
@@ -43,10 +43,9 @@ initialize() {
     current_tick = sim.cycle;
     defineConstant("START_GEN", current_tick); 
     
-    sim.addSubpop("p2", 0); // Low-founder (LF) cage [cite: 1265]
-    sim.addSubpop("p3", 0); // Multi-founder (MF) cage [cite: 1267]
+    sim.addSubpop("p2", 0); 
+    sim.addSubpop("p3", 0); 
     
-    // Selection of Heterozygote founders [cite: 1167]
     inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; 
     if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
         stop("Not enough heterozygotes in burn-in file");
@@ -58,7 +57,6 @@ initialize() {
     sim.killIndividuals(p1.individuals);
     p1.removeSubpopulation(); 
     
-    // Initialize CSV Header 
     header = "rep,gen,treatment,inv_freq,f_std,f_het,f_inv,m2_load";
     writeFile(OUTPUT_FILE, header, append=F);
     
@@ -66,7 +64,7 @@ initialize() {
     community.rescheduleScriptBlock(s2, start=current_tick, end=current_tick + NUM_GEN);
 }
 
-// Reproduction and Recombination Logic
+// Reproduction and Recombination remains the same...
 reproduction(p1) { self.active = 0; }
 reproduction(p2) {
     for (i in 1:K_CAGE) {
@@ -86,7 +84,6 @@ reproduction(p3) {
 }
 
 recombination() {
-    // Recombination suppression inside the inversion for heterozygotes [cite: 196, 1276]
     if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) == 
         haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
         return F;
@@ -104,11 +101,14 @@ s1 1000000 early() {
     if (p3.individualCount > 0) p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
 
-// Data Logging 
+// Corrected Data Logging with Console Output
 s2 1000000 late() { 
     gensSinceStart = sim.cycle - START_GEN;
     
     if (gensSinceStart % LOG_INTERVAL == 0) {
+        // --- ADDED: Progress tracking to Slurm .out files ---
+        catn("Processing Gen: " + gensSinceStart + " / " + NUM_GEN + " (Rep: " + REP_ID + ")");
+        
         populations = c(p2, p3);
         labels = c("LF", "MF");
         
@@ -123,8 +123,6 @@ s2 1000000 late() {
                 f_het = sum(m3_counts == 1) / n;
                 f_inv = sum(m3_counts == 2) / n;
                 inv_freq = sum(m3_counts) / (2.0 * n);
-                
-                // Track deleterious mutation load (AOD hypothesis) [cite: 1258, 1259]
                 m2_load = mean(pop.individuals.countOfMutationsOfType(m2));
                 
                 line = REP_ID + "," + gensSinceStart + "," + label + "," + inv_freq + "," + f_std + "," + f_het + "," + f_inv + "," + m2_load;
