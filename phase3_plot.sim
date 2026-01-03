@@ -101,12 +101,11 @@ s1 1000000 early() {
     if (p3.individualCount > 0) p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
 
-// Corrected Data Logging with Console Output
+// Data Logging with Console Output
 s2 1000000 late() { 
     gensSinceStart = sim.cycle - START_GEN;
     
     if (gensSinceStart % LOG_INTERVAL == 0) {
-        // --- ADDED: Progress tracking to Slurm .out files ---
         catn("Processing Gen: " + gensSinceStart + " / " + NUM_GEN + " (Rep: " + REP_ID + ")");
         
         populations = c(p2, p3);
