@@ -1,0 +1,130 @@
+// Phase 3: population cage experiment
+
+// Set up
+initialize() {
+// Parameters
+defineConstant("BURN_IN_FILE", "inversion_polymorphic_job=306_rep=31756939808336437_freq=0.455294.txt");
+defineConstant("K_CAGE", 1000); 
+defineConstant("NUM_GEN", 100); 
+defineConstant("N_FOUNDERS_LOW", 4); // Low-founders treatment, 4 heterozygote mothers
+defineConstant("N_FOUNDERS_HIGH", 20); // High-founders treatment, 20 heterozygote mothers 
+defineConstant("LOG_INTERVAL", 1); // Log every generation
+defineConstant("L", 23e6); 
+defineConstant("REC_RATE", 2e-8); 
+defineConstant("INV_START", 2e6);
+defineConstant("INV_END", 13e6); 
+defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+// Set Seed and model
+if (!exists("REP_ID")) defineConstant("REP_ID", 1);
+setSeed(getSeed() + REP_ID); 
+initializeSLiMModelType("nonWF");
+// Mutations
+initializeMutationType("m2", 0.0, "g", -0.05, 0.2); // Delerterious mutation m2
+m2.convertToSubstitution = F;
+initializeMutationType("m3", 0.5, "f", 0.0); // Inversion marker m3
+m3.convertToSubstitution = F;
+initializeGenomicElementType("g1", m2, 1.0);
+initializeGenomicElement(g1, 0, L-1); 
+initializeMutationRate(1e-8);
+initializeRecombinationRate(REC_RATE);
+}
+
+// Population cages
+1 early() {
+sim.readFromPopulationFile(BURN_IN_FILE); // Load burn-in file, time jump from generation 1 to 100000
+current_tick = sim.cycle; // Captures new time as current tick
+defineConstant("START_GEN", current_tick); // Create time 0
+sim.addSubpop("p2", 0); // Create population cages
+sim.addSubpop("p3", 0);
+// Find Heterozygotes
+inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1]; 
+if (size(inds_HET) < (N_FOUNDERS_HIGH + N_FOUNDERS_LOW)) { 
+stop("Not enough het");
+}
+// Move founders
+p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW)); // Move 4 het to low-founder population cage, 20 to multi
+p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
+// Cleanup p1
+sim.killIndividuals(p1.individuals);
+p1.removeSubpopulation(); 
+// Time schedule
+community.rescheduleScriptBlock(s1, start=current_tick + 1, end=current_tick + NUM_GEN);
+community.rescheduleScriptBlock(s2, start=current_tick, end=current_tick + NUM_GEN);
+// Fitness scaling - death
+p2.fitnessScaling = K_CAGE / p2.individualCount;
+p3.fitnessScaling = K_CAGE / p3.individualCount;
+}
+
+// Reproduction and recombination
+reproduction(p1) { self.active = 0; } // Disables p1 reproduction
+reproduction(p2) {
+for (i in 1:K_CAGE) {
+mate1 = p2.sampleIndividuals(1);
+mate2 = p2.sampleIndividuals(1);
+p2.addCrossed(mate1, mate2);
+}
+self.active = 0;
+}
+reproduction(p3) {
+for (i in 1:K_CAGE) {
+mate1 = p3.sampleIndividuals(1);
+mate2 = p3.sampleIndividuals(1);
+p3.addCrossed(mate1, mate2);
+}
+self.active = 0;
+}
+recombination() {
+if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
+return F;
+}
+else {
+inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+if (!any(inInv)) {
+return F;
+}
+else {
+breakpoints = breakpoints[!inInv];
+return T;
+}
+}
+}
+
+// Logging and regulation
+
+s1 1000000 early() { 
+if (sim.cycle > START_GEN + NUM_GEN) {
+sim.simulationFinished(); // Finish experiment at gen 100
+}
+if (p2.individualCount > 0) p2.fitnessScaling = K_CAGE / p2.individualCount;
+if (p3.individualCount > 0) p3.fitnessScaling = K_CAGE / p3.individualCount;
+}
+
+s2 1000000 late() { 
+    gensSinceStart = sim.cycle - START_GEN;
+    
+    if (gensSinceStart % LOG_INTERVAL == 0) {
+        populations = list(p2, p3);
+        labels = list("LF", "MF");
+        
+        for (i in seqAlong(populations)) {
+            pop = populations[i];
+            label = labels[i];
+            n = pop.individualCount;
+            
+            if (n > 0) {
+                m3_counts = pop.individuals.countOfMutationsOfType(m3);
+                f_std = sum(m3_counts == 0) / n;
+                f_het = sum(m3_counts == 1) / n;
+                f_inv = sum(m3_counts == 2) / n;
+                inv_freq = sum(m3_counts) / (2.0 * n);
+                
+                // Calculate Deleterious Load (mean m2 mutations per individual)
+                m2_load = mean(pop.individuals.countOfMutationsOfType(m2));
+                
+                line = REP_ID + "," + gensSinceStart + "," + label + "," + inv_freq + "," + f_std + "," + f_het + "," + f_inv + "," + m2_load;
+                writeFile(OUTPUT_FILE, line, append=T);
+            }
+        }
+    }
+}
