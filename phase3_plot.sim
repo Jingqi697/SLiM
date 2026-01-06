@@ -64,7 +64,7 @@ initialize() {
     community.rescheduleScriptBlock(s2, start=current_tick, end=current_tick + NUM_GEN);
 }
 
-// Reproduction and Recombination remains the same...
+// Reproduction and Recombination 
 reproduction(p1) { self.active = 0; }
 reproduction(p2) {
     for (i in 1:K_CAGE) {
