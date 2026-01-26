@@ -6,8 +6,8 @@
 #SBATCH --mem=24G
 #SBATCH -p standard
 #SBATCH --account=berglandlab
-#SBATCH --output=/scratch/cqh6wn/AOD_slim/logs/power.%A.out
-#SBATCH --error=/scratch/cqh6wn/AOD_slim/logs/power.%A.err
+#SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A.out
+#SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A.err
 
 module purge
 module load slim
