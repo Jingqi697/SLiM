@@ -118,7 +118,7 @@ late() {
                      nSTD_MF, nHET_MF, nINV_MF,
                      sep=",");
 
-        writeFile("power_raw_counts.csv", line, append=T);
+        writeFile(OUTFILE, line, append=T);
         sim.simulationFinished();
     }
 }
