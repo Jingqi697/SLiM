@@ -8,8 +8,8 @@
 #SBATCH -p standard
 #SBATCH --account=berglandlab
 #SBATCH --array=1-100
-#SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A.out
-#SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A.err
+#SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A_%a.out
+#SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A_%a.err
 
 module purge
 module load slim
