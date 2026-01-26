@@ -12,7 +12,6 @@
 module purge
 module load slim
 
-cd /scratch/cqh6wn/AOD_slim || exit 1
 
 echo "Starting power scan at $(date)"
 
@@ -48,7 +47,7 @@ for MODEL in "${MODELS[@]}"; do
               -d N_SAMPLE=$S \
               -d N_FOUNDERS_HIGH=$F \
               -d REP_ID=$REP \
-              phase3_power_export.slim
+              phase3_power.slim
 
           done
         done
