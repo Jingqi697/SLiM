@@ -1,23 +1,21 @@
 // Phase 3 Power Simulation
 // AOD vs AOD + TO (15% heterozygote advantage)
 
-// Fixed Low-founder
-defineConstant("N_FOUNDERS_LOW", 4);
-
-// Genome
-defineConstant("L", 23e6);
-defineConstant("MU_DELETERIOUS", 1e-8);
-defineConstant("REC_RATE", 2e-8);
-defineConstant("INV_START", 2e6);
-defineConstant("INV_END", 13e6);
-defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
-
-// AOD burn-in file
-defineConstant("AOD_BURNIN_FILE",
-"01_inversion_polymorphic_job=762_rep=1623910305375505773_freq=0.401233.txt");
-
-
 initialize() {
+   // Fixed Low-founder
+   defineConstant("N_FOUNDERS_LOW", 4);
+
+   // Genome
+   defineConstant("L", 23e6);
+   defineConstant("MU_DELETERIOUS", 1e-8);
+   defineConstant("REC_RATE", 2e-8);
+   defineConstant("INV_START", 2e6);
+   defineConstant("INV_END", 13e6);
+   defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+
+   // AOD burn-in file
+   defineConstant("AOD_BURNIN_FILE",
+   "01_inversion_polymorphic_job=762_rep=1623910305375505773_freq=0.401233.txt");
 
     setSeed(100000 + REP_ID);
     initializeSLiMModelType("nonWF");
