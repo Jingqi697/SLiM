@@ -1,0 +1,166 @@
+// Phase 3 Power Simulation
+// AOD vs AOD + TO (15% heterozygote advantage)
+
+// Variables
+if (!exists("MODEL_TYPE")) 
+   defineConstant("MODEL_TYPE", "AOD");
+if (!exists("K_CAGE"))
+   defineConstant("K_CAGE", 500);
+if (!exists("NUM_GEN"))
+   defineConstant("NUM_GEN", 50);
+if (!exists("N_SAMPLE"))
+   defineConstant("N_SAMPLE", 100);
+if (!exists("REP_ID"))
+   defineConstant("REP_ID", 1);
+if (!exists("N_FOUNDERS_HIGH")) 
+   defineConstant("N_FOUNDERS_HIGH", 20);
+
+// Fixed Low-founder
+defineConstant("N_FOUNDERS_LOW", 4);
+
+// Genome
+defineConstant("L", 23e6);
+defineConstant("MU_DELETERIOUS", 1e-8);
+defineConstant("REC_RATE", 2e-8);
+defineConstant("INV_START", 2e6);
+defineConstant("INV_END", 13e6);
+defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+
+// AOD burn-in file
+defineConstant("AOD_BURNIN_FILE",
+"01_inversion_polymorphic_job=762_rep=1623910305375505773_freq=0.401233.txt");
+
+
+initialize() {
+
+    setSeed(100000 + REP_ID);
+    initializeSLiMModelType("nonWF");
+
+    initializeMutationType("m2", 0.0, "g", -0.05, 0.1);
+    m2.convertToSubstitution = F;
+
+    initializeMutationType("m3", 0.5, "f", 0.0);
+    m3.convertToSubstitution = F;
+
+    initializeGenomicElementType("g1", m2, 1.0);
+    initializeGenomicElement(g1, 0, L - 1);
+
+    initializeMutationRate(MU_DELETERIOUS);
+    initializeRecombinationRate(REC_RATE);
+}
+
+// Intrinsic heterozygote advantage
+fitnessEffect() {
+    if (MODEL_TYPE != "AOD_TO")
+        return 1.0;
+
+    m3_count = individual.countOfMutationsOfType(m3);
+    if (m3_count == 1) return 1.15;
+    return 1.0;
+}
+
+// Set up
+
+1 early() {
+    // Both models start from AOD burn-in
+    sim.readFromPopulationFile(AOD_BURNIN_FILE);
+    sim.addSubpop("p2", 0);   // low-founder cage
+    sim.addSubpop("p3", 0);   // multi-founder cage
+    inds_HET = p1.individuals[p1.individuals.countOfMutationsOfType(m3) == 1];
+    if (size(inds_HET) < (N_FOUNDERS_LOW + N_FOUNDERS_HIGH))
+        stop("Not enough heterozygotes.");
+    p2.takeMigrants(sample(inds_HET, N_FOUNDERS_LOW));
+    p3.takeMigrants(sample(inds_HET, N_FOUNDERS_HIGH));
+    sim.killIndividuals(p1.individuals);
+    p1.removeSubpopulation();
+    defineConstant("START_GEN", sim.cycle);
+}
+
+// Reproduction and fitness
+reproduction(p2) {
+    for (i in 1:K_CAGE)
+        p2.addCrossed(p2.sampleIndividuals(1), p2.sampleIndividuals(1));
+    self.active = 0;
+}
+reproduction(p3) {
+    for (i in 1:K_CAGE)
+        p3.addCrossed(p3.sampleIndividuals(1), p3.sampleIndividuals(1));
+    self.active = 0;
+}
+
+// Death
+early() {
+    if (p2.individualCount > 0)
+        p2.fitnessScaling = K_CAGE / p2.individualCount;
+    if (p3.individualCount > 0)
+        p3.fitnessScaling = K_CAGE / p3.individualCount;
+}
+
+// Recombination
+recombination() {
+    if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+        haplosome2.containsMarkerMutation(m3, INV_MARKER_POS))
+        return F;
+    inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+    if (!any(inInv)) return F;
+    breakpoints = breakpoints[!inInv];
+    return T;
+}
+
+// Output
+late() {
+
+    if (sim.cycle == START_GEN + NUM_GEN) {
+
+        inds_LF = p2.individuals;
+        if (size(inds_LF) > N_SAMPLE)
+            inds_LF = sample(inds_LF, N_SAMPLE);
+        m3_LF = inds_LF.countOfMutationsOfType(m3);
+        nSTD_LF = sum(m3_LF == 0);
+        nHET_LF = sum(m3_LF == 1);
+        nINV_LF = sum(m3_LF == 2);
+
+        inds_MF = p3.individuals;
+        if (size(inds_MF) > N_SAMPLE)
+            inds_MF = sample(inds_MF, N_SAMPLE);
+        m3_MF = inds_MF.countOfMutationsOfType(m3);
+        nSTD_MF = sum(m3_MF == 0);
+        nHET_MF = sum(m3_MF == 1);
+        nINV_MF = sum(m3_MF == 2);
+
+        line = paste(MODEL_TYPE, K_CAGE, NUM_GEN, N_SAMPLE,
+                     N_FOUNDERS_HIGH, REP_ID,
+                     nSTD_LF, nHET_LF, nINV_LF,
+                     nSTD_MF, nHET_MF, nINV_MF,
+                     sep=",");
+
+        writeFile("power_raw_counts.csv", line, append=T);
+        sim.simulationFinished();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
