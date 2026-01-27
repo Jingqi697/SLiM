@@ -52,10 +52,6 @@ fitnessEffect() {
     sim.killIndividuals(p1.individuals);
     p1.removeSubpopulation();
 
-    // Initialize CSV 
-    header = "rep,gen,treatment,inv_freq,f_std,f_het,f_inv";
-    writeFile(OUTPUT_FILE, header, append=F);
-
     community.rescheduleScriptBlock(s1, start=sim.cycle + 1, end=sim.cycle + NUM_GEN);
     community.rescheduleScriptBlock(s2, start=sim.cycle, end=sim.cycle + NUM_GEN);
 }
@@ -88,10 +84,10 @@ recombination() {
 }
 
 s1 2 early() {
-    if (sim.cycle > START_GEN + NUM_GEN) sim.simulationFinished();
     p2.fitnessScaling = K_CAGE / p2.individualCount;
     p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
+
 
 s2 2 late() {
     gensSinceStart = sim.cycle - START_GEN;
