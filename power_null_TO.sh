@@ -9,7 +9,7 @@
 #SBATCH --account=berglandlab
 
 # Number of replicates = size of array
-#SBATCH --array=1-100
+#SBATCH --array=1-1000
 
 #SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.out
 #SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.err
