@@ -1,0 +1,135 @@
+// Phase 3 Power Simulation
+// TO vs NULL
+
+initialize() {
+
+    defineConstant("N_FOUNDERS_LOW", 4);
+
+    // Genome
+    defineConstant("L", 23e6);
+    defineConstant("REC_RATE", 2e-8);
+    defineConstant("INV_START", 2e6);
+    defineConstant("INV_END", 13e6);
+    defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
+    // Inversion marker only
+    initializeMutationType("m3", 0.5, "f", 0.0);
+    m3.convertToSubstitution = F;
+
+    initializeGenomicElementType("g1", m3, 1.0);
+    initializeGenomicElement(g1, 0, L - 1);
+
+    initializeMutationRate(0.0);
+    initializeRecombinationRate(REC_RATE);
+}
+
+// Intrinsic heterozygote advantage
+fitnessEffect() {
+    if (MODEL_TYPE != "TO")
+        return 1.0;
+
+    m3_count = individual.countOfMutationsOfType(m3);
+    if (m3_count == 1) return 1.15;
+    return 1.0;
+}
+
+// Set up cages
+1 early() {
+
+    sim.readFromPopulationFile(TO_BURNIN_FILE);
+
+    sim.addSubpop("p2", 0); // LF cage
+    sim.addSubpop("p3", 0); // MF cage
+
+    inds = p1.individuals;
+
+    // Sample founders randomly (not only heterozygotes)
+    p2.takeMigrants(sample(inds, N_FOUNDERS_LOW));
+    p3.takeMigrants(sample(inds, N_FOUNDERS_HIGH));
+
+    sim.killIndividuals(p1.individuals);
+    p1.removeSubpopulation();
+
+    defineConstant("START_GEN", sim.cycle);
+}
+
+// Reproduction
+reproduction(p2) {
+    for (i in 1:K_CAGE)
+        p2.addCrossed(p2.sampleIndividuals(1),
+                      p2.sampleIndividuals(1));
+    self.active = 0;
+}
+reproduction(p3) {
+    for (i in 1:K_CAGE)
+        p3.addCrossed(p3.sampleIndividuals(1),
+                      p3.sampleIndividuals(1));
+    self.active = 0;
+}
+
+// Recombination suppression 
+recombination() {
+    if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
+        haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
+        return F;
+    } else {
+        inInv = (breakpoints > INV_START) & (breakpoints < INV_END);
+        if (!any(inInv)) return F;
+        breakpoints = breakpoints[!inInv];
+        return T;
+    }
+}
+
+s1 2 early() {
+    if (sim.cycle > START_GEN + NUM_GEN) sim.simulationFinished();
+    p2.fitnessScaling = K_CAGE / p2.individualCount;
+    p3.fitnessScaling = K_CAGE / p3.individualCount;
+}
+
+// Output 
+late() {
+    if (sim.cycle == START_GEN + NUM_GEN) {
+
+        inds_LF = p2.individuals;
+        if (size(inds_LF) > N_SAMPLE)
+            inds_LF = sample(inds_LF, N_SAMPLE);
+
+        m3_LF = inds_LF.countOfMutationsOfType(m3);
+        nSTD_LF = sum(m3_LF == 0);
+        nHET_LF = sum(m3_LF == 1);
+        nINV_LF = sum(m3_LF == 2);
+
+        inds_MF = p3.individuals;
+        if (size(inds_MF) > N_SAMPLE)
+            inds_MF = sample(inds_MF, N_SAMPLE);
+
+        m3_MF = inds_MF.countOfMutationsOfType(m3);
+        nSTD_MF = sum(m3_MF == 0);
+        nHET_MF = sum(m3_MF == 1);
+        nINV_MF = sum(m3_MF == 2);
+
+        line = paste(MODEL_TYPE, K_CAGE, NUM_GEN, N_SAMPLE,
+                     N_FOUNDERS_HIGH, REP_ID,
+                     nSTD_LF, nHET_LF, nINV_LF,
+                     nSTD_MF, nHET_MF, nINV_MF,
+                     sep=",");
+
+        writeFile(OUTFILE, line, append=T);
+        sim.simulationFinished();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
