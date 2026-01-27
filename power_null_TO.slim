@@ -20,6 +20,8 @@ initialize() {
 
     initializeMutationRate(0.0);
     initializeRecombinationRate(REC_RATE);
+    initializeSLiMModelType("nonWF");
+
 }
 
 // Intrinsic heterozygote advantage
@@ -32,24 +34,30 @@ fitnessEffect() {
     return 1.0;
 }
 
-// Set up cages
+// Setup cages
 1 early() {
+    sim.addSubpop("p1", 100); 
+    for (ind in p1.individuals) {
+        ind.genomes[0].addNewMutation(m3, 0.0, INV_MARKER_POS);
+    }
 
-    sim.readFromPopulationFile(TO_BURNIN_FILE);
+    defineConstant("START_GEN", sim.cycle);
+    sim.addSubpop("p2", 0); // Low-founder (LF)
+    sim.addSubpop("p3", 0); // Multi-founder (MF)
 
-    sim.addSubpop("p2", 0); // LF cage
-    sim.addSubpop("p3", 0); // MF cage
-
-    inds = p1.individuals;
-
-    // Sample founders randomly (not only heterozygotes)
-    p2.takeMigrants(sample(inds, N_FOUNDERS_LOW));
-    p3.takeMigrants(sample(inds, N_FOUNDERS_HIGH));
+    // Cages with heterozygotes
+    p2.takeMigrants(sample(p1.individuals, N_FOUNDERS_LOW));
+    p3.takeMigrants(sample(p1.individuals, N_FOUNDERS_HIGH));
 
     sim.killIndividuals(p1.individuals);
     p1.removeSubpopulation();
 
-    defineConstant("START_GEN", sim.cycle);
+    // Initialize CSV 
+    header = "rep,gen,treatment,inv_freq,f_std,f_het,f_inv";
+    writeFile(OUTPUT_FILE, header, append=F);
+
+    community.rescheduleScriptBlock(s1, start=sim.cycle + 1, end=sim.cycle + NUM_GEN);
+    community.rescheduleScriptBlock(s2, start=sim.cycle, end=sim.cycle + NUM_GEN);
 }
 
 // Reproduction
@@ -85,9 +93,10 @@ s1 2 early() {
     p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
 
-// Output 
-late() {
-    if (sim.cycle == START_GEN + NUM_GEN) {
+s2 2 late() {
+    gensSinceStart = sim.cycle - START_GEN;
+
+    if (gensSinceStart % LOG_INTERVAL == 0) {
 
         inds_LF = p2.individuals;
         if (size(inds_LF) > N_SAMPLE)
