@@ -11,8 +11,8 @@
 # Number of replicates = size of array
 #SBATCH --array=1-100
 
-#SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A_%a.out
-#SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/logs/power.%A_%a.err
+#SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.out
+#SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.err
 
 
 module purge
