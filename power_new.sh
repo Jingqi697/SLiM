@@ -60,4 +60,4 @@ for MODEL in "${MODELS[@]}"; do
   done
 done
 
-echo "Finished TASK ${TASK_ID} at $(date)"
+echo "Finished TASK ${TASK_ID} 
