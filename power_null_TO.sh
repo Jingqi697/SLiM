@@ -45,14 +45,14 @@ for MODEL in "${MODELS[@]}"; do
           echo "RUN: REP=${REP_ID} MODEL=${MODEL} K=${K} G=${G} S=${S} FOUNDERS=${F}"
 
           slim \
-            -d MODEL_TYPE=\"${MODEL}\" \
-            -d K_CAGE=${K} \
-            -d NUM_GEN=${G} \
-            -d N_SAMPLE=${S} \
-            -d N_FOUNDERS_HIGH=${F} \
-            -d REP_ID=${REP_ID} \
-            -d OUTFILE=\"${OUTFILE}\" \
-            power_null_TO.slim
+          -d MODEL_TYPE="${MODEL}" \
+          -d K_CAGE=${K} \
+          -d NUM_GEN=${G} \
+          -d N_SAMPLE=${S} \
+          -d N_FOUNDERS_HIGH=${F} \
+          -d REP_ID=${REP_ID} \
+          -d OUTFILE="${OUTFILE}" \
+          power_null_TO.slim
 
         done
       done
