@@ -27,9 +27,6 @@ REP_ID=${TASK_ID}
 OUTFILE="power_chunk_${TASK_ID}.csv"
 rm -f ${OUTFILE}
 
-echo "Starting TASK ${TASK_ID} (replicate ${REP_ID}) at $(date)"
-echo "Output file: ${OUTFILE}"
-
 ## Parameters
 MODELS=("AOD" "AOD_TO")
 
