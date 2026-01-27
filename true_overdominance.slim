@@ -87,7 +87,7 @@ recombination() {
 }
 
 // True Overdominance
-fitness(NULL) { 
+fitnessEffect() { 
     m3_count = individual.countOfMutationsOfType(m3);
     if (m3_count == 1) return 1.15; // 15% fitness boost
     return 1.00;
