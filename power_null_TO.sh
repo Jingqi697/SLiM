@@ -18,7 +18,7 @@
 module purge
 module load slim
 
-cd /scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power || exit 1
+cd /scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null || exit 1
 
 
 TASK_ID=${SLURM_ARRAY_TASK_ID}
