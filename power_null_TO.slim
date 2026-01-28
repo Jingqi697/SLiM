@@ -1,5 +1,4 @@
-// power_null_TO.slim
-// NULL vs True Overdominance power model
+// NULL vs True Overdominance power model 
 
 initialize() {
 
@@ -27,14 +26,12 @@ initialize() {
 
     // Reproducible RNG
     setSeed(100000 + REP_ID);
-
-    // Safety default
-    if (!exists("LOG_INTERVAL"))
-        defineConstant("LOG_INTERVAL", NUM_GEN);
 }
 
+
+
 // True overdominance only when MODEL_TYPE == "TO"
-fitnessEffect() {
+fitness(NULL) {
     if (MODEL_TYPE != "TO")
         return 1.0;
 
@@ -42,6 +39,8 @@ fitnessEffect() {
     if (m3_count == 1) return 1.15;   // heterozygote advantage
     return 1.0;
 }
+
+
 
 // Setup cages
 1 early() {
@@ -63,6 +62,8 @@ fitnessEffect() {
     p1.removeSubpopulation();
 }
 
+
+
 // Reproduction
 reproduction(p2) {
     for (i in 1:K_CAGE)
@@ -78,11 +79,15 @@ reproduction(p3) {
     self.active = 0;
 }
 
-// Density regulation
+
+
+// Death
 s1 2 early() {
     p2.fitnessScaling = K_CAGE / p2.individualCount;
     p3.fitnessScaling = K_CAGE / p3.individualCount;
 }
+
+
 
 // Recombination suppression inside inversion
 recombination() {
@@ -97,6 +102,7 @@ recombination() {
     return T;
 }
 
+
 // Output
 late() {
 
@@ -107,7 +113,7 @@ late() {
         if (size(inds_LF) > N_SAMPLE)
             inds_LF = sample(inds_LF, N_SAMPLE);
 
-        m3_LF  = inds_LF.countOfMutationsOfType(m3);
+        m3_LF   = inds_LF.countOfMutationsOfType(m3);
         nSTD_LF = sum(m3_LF == 0);
         nHET_LF = sum(m3_LF == 1);
         nINV_LF = sum(m3_LF == 2);
@@ -117,7 +123,7 @@ late() {
         if (size(inds_MF) > N_SAMPLE)
             inds_MF = sample(inds_MF, N_SAMPLE);
 
-        m3_MF  = inds_MF.countOfMutationsOfType(m3);
+        m3_MF   = inds_MF.countOfMutationsOfType(m3);
         nSTD_MF = sum(m3_MF == 0);
         nHET_MF = sum(m3_MF == 1);
         nINV_MF = sum(m3_MF == 2);
@@ -128,23 +134,9 @@ late() {
                      nSTD_MF, nHET_MF, nINV_MF,
                      sep=",");
 
+        catn("Writing output to: " + OUTFILE);
         writeFile(OUTFILE, line, append=T);
+
         sim.simulationFinished();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
