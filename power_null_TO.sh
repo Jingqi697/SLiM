@@ -14,27 +14,26 @@
 #SBATCH --output=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.out
 #SBATCH --error=/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null/logs/power.%A_%a.err
 
-
 module purge
-module load slim
+module load slim/5.0
 
-cd /scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null || exit 1
+BASE_DIR="/scratch/cqh6wn/AOD_slim/Distribution/Inversions/1/TO/Power/Null"
+cd "${BASE_DIR}" || exit 1
 
 
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 REP_ID=${TASK_ID}
 
-OUTFILE="power_chunk_${TASK_ID}.csv"
-rm -f ${OUTFILE}
+# Absolute output path
+OUTFILE="${BASE_DIR}/power_chunk_${TASK_ID}.csv"
+rm -f "${OUTFILE}"
 
-## Parameters
 MODELS=("NULL" "TO")
 
 K_LIST=(300 500 1000)
 G_LIST=(10 15 20)
 S_LIST=(50 100 200)
 FOUNDERS_LIST=(10 20 40)
-
 
 for MODEL in "${MODELS[@]}"; do
   for K in "${K_LIST[@]}"; do
@@ -45,14 +44,14 @@ for MODEL in "${MODELS[@]}"; do
           echo "RUN: REP=${REP_ID} MODEL=${MODEL} K=${K} G=${G} S=${S} FOUNDERS=${F}"
 
           slim \
-          -d MODEL_TYPE="${MODEL}" \
-          -d K_CAGE=${K} \
-          -d NUM_GEN=${G} \
-          -d N_SAMPLE=${S} \
-          -d N_FOUNDERS_HIGH=${F} \
-          -d REP_ID=${REP_ID} \
-          -d OUTFILE="${OUTFILE}" \
-          power_null_TO.slim
+            -d MODEL_TYPE="'${MODEL}'" \
+            -d K_CAGE=${K} \
+            -d NUM_GEN=${G} \
+            -d N_SAMPLE=${S} \
+            -d N_FOUNDERS_HIGH=${F} \
+            -d REP_ID=${REP_ID} \
+            -d OUTFILE="'${OUTFILE}'" \
+            power_null_TO.slim
 
         done
       done
@@ -60,4 +59,4 @@ for MODEL in "${MODELS[@]}"; do
   done
 done
 
-echo "Finished TASK ${TASK_ID} 
+echo "Finished TASK ${TASK_ID}"
