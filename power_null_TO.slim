@@ -128,11 +128,11 @@ late() {
         nHET_MF = sum(m3_MF == 1);
         nINV_MF = sum(m3_MF == 2);
 
-        line = paste(MODEL_TYPE, K_CAGE, NUM_GEN, N_SAMPLE,
-                     N_FOUNDERS_HIGH,
-                     nSTD_LF, nHET_LF, nINV_LF,
-                     nSTD_MF, nHET_MF, nINV_MF,
-                     sep=",");
+         line = paste(MODEL_TYPE, K_CAGE, NUM_GEN, N_SAMPLE,
+                  N_FOUNDERS_HIGH, REP_ID,
+                  nSTD_LF, nHET_LF, nINV_LF,
+                  nSTD_MF, nHET_MF, nINV_MF,
+                  sep=",");
 
         catn("Writing output to: " + OUTFILE);
         writeFile(OUTFILE, line, append=T);
