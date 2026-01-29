@@ -8,7 +8,7 @@ defineConstant("L", 23e6); // Chromosome 2L
 defineConstant("REC_RATE", 2.4e-8); // Recombination rate
 defineConstant("INV_START", 2e6);
 defineConstant("INV_END", 13e6); // Inversion In(2L)t -- 11 Mb
-defineConstant("MU_DELETERIOUS", 3e-9);
+defineConstant("MU_TOTAL", 3e-9);
 defineConstant("DFE_SHAPE", 0.33);
 defineConstant("DFE_MEAN_S", -0.001); // Deleterious mutation fitness cost, gamma distribution with mewan of -0.05
 defineConstant("H_DOMINANCE", 0.2); // Fully recessive
@@ -35,7 +35,7 @@ defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
         c(m1, m2),
         c(0.26, 0.74));
 initializeGenomicElement(g1, 0, L-1); // Standard chromosome
-initializeMutationRate(MU_DELETERIOUS);
+initializeMutationRate(MU_TOTAL);
 initializeRecombinationRate(REC_RATE);
 }
 
