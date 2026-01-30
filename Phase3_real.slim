@@ -71,9 +71,9 @@ reproduction(p2) {
 }
 
 reproduction(p3) {
-    for (i in 1:(2 * p2.individualCount)) {
-        mate1 = p2.sampleIndividuals(1);
-        mate2 = p2.sampleIndividuals(1);
+    for (i in 1:(2 * p3.individualCount)) {
+        mate1 = p3.sampleIndividuals(1);
+        mate2 = p3.sampleIndividuals(1);
         p2.addCrossed(mate1, mate2);
     }
     self.active = 0;
