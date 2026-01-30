@@ -25,10 +25,10 @@ initializeMutationType("m2", 0.0, "g", -0.001, 0.33); // Delerterious mutation m
 m2.convertToSubstitution = F;
 initializeMutationType("m3", 0.5, "f", 0.0); // Inversion marker m3
 m3.convertToSubstitution = F;
-initializeGenomicElementType("g1", m2, 1.0);
 initializeGenomicElementType("g1",
         c(m1, m2),
         c(0.26, 0.74));
+initializeGenomicElement(g1, 0, L-1); // Standard chromosome
 initializeMutationRate(3e-9);
 initializeRecombinationRate(REC_RATE);
 }
@@ -62,21 +62,23 @@ p3.fitnessScaling = K_CAGE / p3.individualCount;
 // Reproduction and recombination
 reproduction(p1) { self.active = 0; } // Disables p1 reproduction
 reproduction(p2) {
-for (i in 1:K_CAGE) {
-mate1 = p2.sampleIndividuals(1);
-mate2 = p2.sampleIndividuals(1);
-p2.addCrossed(mate1, mate2);
+    for (i in 1:(2 * p2.individualCount)) {
+        mate1 = p2.sampleIndividuals(1);
+        mate2 = p2.sampleIndividuals(1);
+        p2.addCrossed(mate1, mate2);
+    }
+    self.active = 0;
 }
-self.active = 0;
-}
+
 reproduction(p3) {
-for (i in 1:K_CAGE) {
-mate1 = p3.sampleIndividuals(1);
-mate2 = p3.sampleIndividuals(1);
-p3.addCrossed(mate1, mate2);
+    for (i in 1:(2 * p2.individualCount)) {
+        mate1 = p2.sampleIndividuals(1);
+        mate2 = p2.sampleIndividuals(1);
+        p2.addCrossed(mate1, mate2);
+    }
+    self.active = 0;
 }
-self.active = 0;
-}
+
 recombination() {
 if (haplosome1.containsMarkerMutation(m3, INV_MARKER_POS) ==
 haplosome2.containsMarkerMutation(m3, INV_MARKER_POS)) {
