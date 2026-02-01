@@ -12,7 +12,7 @@ initialize() {
     defineConstant("N_FOUNDERS_HIGH", 20); // MF treatment
     defineConstant("LOG_INTERVAL", 1);
     defineConstant("L", 23e6);             // Chromosome 2L length 
-    defineConstant("REC_RATE", 2e-8);      // Recombination rate
+    defineConstant("REC_RATE", 2.4e-8);      // Recombination rate
     defineConstant("INV_START", 2e6);
     defineConstant("INV_END", 13e6);
     defineConstant("INV_MARKER_POS", integerDiv(INV_START + INV_END, 2));
@@ -89,7 +89,7 @@ recombination() {
 // True Overdominance
 fitnessEffect() { 
     m3_count = individual.countOfMutationsOfType(m3);
-    if (m3_count == 1) return 1.15; // 15% fitness boost
+    if (m3_count == 1) return 1.01; // 1% fitness boost
     return 1.00;
 }
 
